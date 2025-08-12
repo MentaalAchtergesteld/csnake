@@ -65,7 +65,9 @@ int main() {
 
 	const int gridOffset = (windowSize - gridSize * cellSize)/2;
 
-	const float moveSpeed = 0.25;
+	const float speedFactor = 0.95;
+	const float baseSpeed   = 0.25;
+	float moveSpeed = baseSpeed;
 
 	Snake snake;
 	snake.capacity = 4;
@@ -96,6 +98,7 @@ int main() {
 			if (snake.cells[0].x == food.x && snake.cells[0].y == food.y) {
 				growSnake(&snake, tail);
 				randomizeFood(&food, gridSize);
+				moveSpeed = baseSpeed * powf(speedFactor, snake.length-1);
 			}
 			inc -= moveSpeed;
 		};
@@ -104,6 +107,7 @@ int main() {
 		if (IsKeyPressed(KEY_S)) snake.direction = (Vector2){ 0, 1};
 		if (IsKeyPressed(KEY_A)) snake.direction = (Vector2){-1, 0};
 		if (IsKeyPressed(KEY_D)) snake.direction = (Vector2){ 1, 0};
+		if (IsKeyPressed(KEY_SPACE)) TakeScreenshot("screenshot.png");
 
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
