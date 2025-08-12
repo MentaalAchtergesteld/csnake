@@ -4,13 +4,13 @@
 #include "raylib.h"
 
 typedef struct CellNode {
-	Vector2* data;
-	struct CellNode* next;
+	Vector2 data;
+	struct CellNode *next;
 } CellNode;
 
 typedef struct {
-	CellNode* head;
-	CellNode* tail;
+	CellNode *head;
+	CellNode *tail;
 	int length;
 	Vector2 direction;
 	Vector2 desiredDirection;
@@ -23,57 +23,53 @@ typedef struct {
 	float baseSpeed;
 	float speedFactor;
 	float currentSpeed;
+	float inc;
 
 	Snake snake;
 	Vector2 food;
-
-	float inc;
-
 } GameState;
 
 Vector2 screenToGrid(Vector2 pos, int gridSize) {
-	Vector2 gridPos = {
+	return (Vector2){
 		floor(pos.x / gridSize),
 		floor(pos.y / gridSize),
 	};
-	return gridPos;
 }
 
 Vector2 gridToScreen(Vector2 pos, int cellSize) {
-	Vector2 screenPos = {
+	return (Vector2){
 		pos.x * cellSize,
 		pos.y * cellSize, 
 	};
-	return screenPos;
 }
 
 void moveSnake(Snake *snake) {
     if (!snake->head) return;
 
-    CellNode* cell = snake->tail;
+    CellNode *cell = snake->tail;
 
     while (cell != NULL) {
-        CellNode* next = cell->next;
+        CellNode *next = cell->next;
         if (next == NULL) break; 
 
-        cell->data->x = next->data->x;
-        cell->data->y = next->data->y;
+        cell->data.x = next->data.x;
+        cell->data.y = next->data.y;
 
         cell = next;
     }
 
-		snake->head->data->x += snake->direction.x;
-		snake->head->data->y += snake->direction.y;
+		snake->head->data.x += snake->direction.x;
+		snake->head->data.y += snake->direction.y;
 }
 
 void growSnake(Snake *snake, Vector2 tail) {
-	CellNode* newTail = malloc(sizeof(CellNode));
+	CellNode *newTail = malloc(sizeof(CellNode));
 	if (!newTail) {
 		printf("ERROR: couldn't allocate CellNode in growing snake");
 		exit(1);
 	}
 
-	Vector2* pos = malloc(sizeof(Vector2));
+	Vector2 *pos = malloc(sizeof(Vector2));
 	if (!pos) {
 		free(newTail);
 		printf("ERROR: couldn't allocate Vector2 in growing snake");
@@ -82,7 +78,7 @@ void growSnake(Snake *snake, Vector2 tail) {
 
 	*pos = tail;
 
-	newTail->data = pos;
+	newTail->data = *pos;
 	newTail->next = snake->tail;
 
 	snake->tail = newTail;
@@ -100,10 +96,10 @@ void updateGame(GameState *state) {
 
 	Vector2 tail;
 	while (state->inc > state->currentSpeed) {
-		tail = *state->snake.tail->data;
+		tail = state->snake.tail->data;
 		state->snake.direction = state->snake.desiredDirection;
 		moveSnake(&state->snake);
-		if (state->snake.head->data->x == state->food.x && state->snake.head->data->y == state->food.y) {
+		if (state->snake.head->data.x == state->food.x && state->snake.head->data.y == state->food.y) {
 			growSnake(&state->snake, tail);
 			randomizeFood(&state->food, state->gridSize);
 			state->currentSpeed = state->baseSpeed * powf(state->speedFactor, state->snake.length-1);
@@ -164,7 +160,7 @@ int main() {
 			for (int x = 0; x < gridSize; x++) {
 				Color color;
 				if ((x + y) % 2 == 0) { color = GRAY; } 
-				else 								{ color = LIGHTGRAY; };
+				else 								  { color = LIGHTGRAY; };
 
 				Vector2 screenPos = gridToScreen((Vector2){x,y}, cellSize);
 				DrawRectangle(
@@ -182,9 +178,9 @@ int main() {
 			RED
 		);
 
-		CellNode* cell = state.snake.tail;
+		CellNode *cell = state.snake.tail;
 		while (cell != NULL) {
-			Vector2 screenPos = gridToScreen(*cell->data, cellSize);
+			Vector2 screenPos = gridToScreen(cell->data, cellSize);
 			DrawRectangle(
 					gridOffset + screenPos.x, gridOffset + screenPos.y,
 					cellSize, cellSize,
@@ -194,7 +190,7 @@ int main() {
 			cell = cell->next;
 		}
 
-		Vector2 pos = gridToScreen(*snake.head->data, cellSize);
+		Vector2 pos = gridToScreen(snake.head->data, cellSize);
 		DrawRectangle(gridOffset+pos.x, gridOffset+pos.y, cellSize, cellSize, BLUE);
 		EndDrawing();
 	}
