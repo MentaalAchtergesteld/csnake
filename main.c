@@ -3,11 +3,32 @@
 #include <stdlib.h>
 #include "raylib.h"
 
+typedef struct CellNode {
+	Vector2* data;
+	struct CellNode* next;
+} CellNode;
+
 typedef struct {
-	Vector2* cells;
+	CellNode* head;
+	CellNode* tail;
+	int length;
 	Vector2 direction;
-	int length, capacity;
 } Snake;
+
+typedef struct {
+	int gridSize;	
+	int cellSize;
+
+	float baseSpeed;
+	float speedFactor;
+	float currentSpeed;
+
+	Snake snake;
+	Vector2 food;
+
+	float inc;
+
+} GameState;
 
 Vector2 screenToGrid(Vector2 pos, int gridSize) {
 	Vector2 gridPos = {
@@ -26,35 +47,74 @@ Vector2 gridToScreen(Vector2 pos, int cellSize) {
 }
 
 void moveSnake(Snake *snake) {
-	if (snake->length == 0) return;
+    if (!snake->head) return;
 
-	for (int i = snake->length-1; i >= 1; i--) {
-		snake->cells[i].x = snake->cells[i-1].x;
-		snake->cells[i].y = snake->cells[i-1].y;
-	}
+    CellNode* cell = snake->tail;
 
-	snake->cells[0].x += snake->direction.x;
-	snake->cells[0].y += snake->direction.y;
+    while (cell != NULL) {
+        CellNode* next = cell->next;
+        if (next == NULL) break; 
+
+        cell->data->x = next->data->x;
+        cell->data->y = next->data->y;
+
+        cell = next;
+    }
+
+		snake->head->data->x += snake->direction.x;
+		snake->head->data->y += snake->direction.y;
 }
 
 void growSnake(Snake *snake, Vector2 tail) {
-	if (snake->length >= snake->capacity) {
-		snake->capacity *= 2;
-		snake->cells = realloc(snake->cells, sizeof(Vector2) * snake->capacity);
-		if (snake->cells == NULL) {
-			printf("Failed to realloc snake cells\n");
-			exit(1);
-		}
+	CellNode* newTail = malloc(sizeof(CellNode));
+	if (!newTail) {
+		printf("ERROR: couldn't allocate CellNode in growing snake");
+		exit(1);
 	}
 
-	snake->cells[snake->length] = tail;
-	snake->length++;
+	Vector2* pos = malloc(sizeof(Vector2));
+	if (!pos) {
+		free(newTail);
+		printf("ERROR: couldn't allocate Vector2 in growing snake");
+		exit(1);
+	}
+
+	*pos = tail;
+
+	newTail->data = pos;
+	newTail->next = snake->tail;
+
+	snake->tail = newTail;
+	snake->length += 1;
 }
 
 void randomizeFood(Vector2 *food, int gridSize) {
 	food->x = rand() % gridSize;
 	food->y = rand() % gridSize;
 }
+
+void updateGame(GameState *state) {
+	float dt = GetFrameTime();
+	state->inc += dt;
+
+	Vector2 tail;
+	while (state->inc > state->currentSpeed) {
+		tail = *state->snake.tail->data;
+		moveSnake(&state->snake);
+		if (state->snake.head->data->x == state->food.x && state->snake.head->data->y == state->food.y) {
+			growSnake(&state->snake, tail);
+			randomizeFood(&state->food, state->gridSize);
+			state->currentSpeed = state->baseSpeed * powf(state->speedFactor, state->snake.length-1);
+		}
+		state->inc -= state->currentSpeed;
+	};
+
+	if (IsKeyPressed(KEY_W)) state->snake.direction = (Vector2){ 0,-1};
+	if (IsKeyPressed(KEY_S)) state->snake.direction = (Vector2){ 0, 1};
+	if (IsKeyPressed(KEY_A)) state->snake.direction = (Vector2){-1, 0};
+	if (IsKeyPressed(KEY_D)) state->snake.direction = (Vector2){ 1, 0};
+	if (IsKeyPressed(KEY_SPACE)) TakeScreenshot("screenshot.png");
+} 
 
 int main() {
 	const int windowSize = 1024;
@@ -65,49 +125,34 @@ int main() {
 
 	const int gridOffset = (windowSize - gridSize * cellSize)/2;
 
-	const float speedFactor = 0.95;
-	const float baseSpeed   = 0.25;
-	float moveSpeed = baseSpeed;
-
 	Snake snake;
-	snake.capacity = 4;
 	snake.length = 2;
-	snake.cells = malloc(sizeof(Vector2) * snake.capacity);
-
-	snake.cells[0] = (Vector2){ 1, 0 };
-	snake.cells[1] = (Vector2){ 0, 0 };
-
-
 	snake.direction = (Vector2){ 1, 0 };
+
+	growSnake(&snake, (Vector2){ 1, 0 });
+	snake.head = snake.tail;
+	growSnake(&snake, (Vector2){ 0, 0 });
 
 	Vector2 food;
 	randomizeFood(&food, gridSize);
 
+	GameState state;
+	state.gridSize = gridSize;
+	state.cellSize = cellSize;
+
+	state.baseSpeed = 0.25;
+	state.speedFactor = 0.95;
+	state.currentSpeed = state.baseSpeed;
+	state.snake = snake;
+	state.food = food;
+	state.inc = 0;
+
 	InitWindow(windowSize, windowSize, "C Snake");
 	SetTargetFPS(targetFPS);
 
-	float inc = 0;
 	while (!WindowShouldClose()) {
-		float dt = GetFrameTime();
-		inc += dt;
 
-		Vector2 tail;
-		while (inc > moveSpeed) {
-			tail = snake.cells[snake.length-1];
-			moveSnake(&snake);
-			if (snake.cells[0].x == food.x && snake.cells[0].y == food.y) {
-				growSnake(&snake, tail);
-				randomizeFood(&food, gridSize);
-				moveSpeed = baseSpeed * powf(speedFactor, snake.length-1);
-			}
-			inc -= moveSpeed;
-		};
-
-		if (IsKeyPressed(KEY_W)) snake.direction = (Vector2){ 0,-1};
-		if (IsKeyPressed(KEY_S)) snake.direction = (Vector2){ 0, 1};
-		if (IsKeyPressed(KEY_A)) snake.direction = (Vector2){-1, 0};
-		if (IsKeyPressed(KEY_D)) snake.direction = (Vector2){ 1, 0};
-		if (IsKeyPressed(KEY_SPACE)) TakeScreenshot("screenshot.png");
+		updateGame(&state);
 
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
@@ -127,22 +172,27 @@ int main() {
 			}
 		}
 
-		Vector2 screenPos = gridToScreen(food, cellSize);
+		Vector2 screenPos = gridToScreen(state.food, cellSize);
 		DrawRectangle(
 			gridOffset + screenPos.x, gridOffset + screenPos.y,
 			cellSize, cellSize,
 			RED
 		);
 
-		for (int i = 0; i < snake.length; i++) {
-			Vector2 screenPos = gridToScreen(snake.cells[i], cellSize);
+		CellNode* cell = state.snake.tail;
+		while (cell != NULL) {
+			Vector2 screenPos = gridToScreen(*cell->data, cellSize);
 			DrawRectangle(
 					gridOffset + screenPos.x, gridOffset + screenPos.y,
 					cellSize, cellSize,
 					GREEN
 			);
+
+			cell = cell->next;
 		}
 
+		Vector2 pos = gridToScreen(*snake.head->data, cellSize);
+		DrawRectangle(gridOffset+pos.x, gridOffset+pos.y, cellSize, cellSize, BLUE);
 		EndDrawing();
 	}
 
