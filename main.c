@@ -13,6 +13,7 @@ typedef struct {
 	CellNode* tail;
 	int length;
 	Vector2 direction;
+	Vector2 desiredDirection;
 } Snake;
 
 typedef struct {
@@ -100,6 +101,7 @@ void updateGame(GameState *state) {
 	Vector2 tail;
 	while (state->inc > state->currentSpeed) {
 		tail = *state->snake.tail->data;
+		state->snake.direction = state->snake.desiredDirection;
 		moveSnake(&state->snake);
 		if (state->snake.head->data->x == state->food.x && state->snake.head->data->y == state->food.y) {
 			growSnake(&state->snake, tail);
@@ -109,11 +111,11 @@ void updateGame(GameState *state) {
 		state->inc -= state->currentSpeed;
 	};
 
-	if (IsKeyPressed(KEY_W)) state->snake.direction = (Vector2){ 0,-1};
-	if (IsKeyPressed(KEY_S)) state->snake.direction = (Vector2){ 0, 1};
-	if (IsKeyPressed(KEY_A)) state->snake.direction = (Vector2){-1, 0};
-	if (IsKeyPressed(KEY_D)) state->snake.direction = (Vector2){ 1, 0};
-	if (IsKeyPressed(KEY_SPACE)) TakeScreenshot("screenshot.png");
+	if      (IsKeyPressed(KEY_W) && state->snake.direction.y !=  1) state->snake.desiredDirection = (Vector2){ 0,-1};
+	else if (IsKeyPressed(KEY_S) && state->snake.direction.y != -1) state->snake.desiredDirection = (Vector2){ 0, 1};
+	else if (IsKeyPressed(KEY_A) && state->snake.direction.x !=  1) state->snake.desiredDirection = (Vector2){-1, 0};
+	else if (IsKeyPressed(KEY_D) && state->snake.direction.x != -1) state->snake.desiredDirection = (Vector2){ 1, 0};
+	else if (IsKeyPressed(KEY_SPACE)) TakeScreenshot("screenshot.png");
 } 
 
 int main() {
@@ -128,6 +130,7 @@ int main() {
 	Snake snake;
 	snake.length = 2;
 	snake.direction = (Vector2){ 1, 0 };
+	snake.desiredDirection = (Vector2){ 1, 0 };
 
 	growSnake(&snake, (Vector2){ 1, 0 });
 	snake.head = snake.tail;
